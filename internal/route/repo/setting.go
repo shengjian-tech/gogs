@@ -207,6 +207,8 @@ func SettingsPost(c *context.Context, f form.RepoSetting) {
 		c.Redirect(conf.Server.Subpath + "/" + c.Repo.Owner.Name + "/" + repo.Name)
 
 	case "transfer":
+		c.Redirect(c.Repo.RepoLink + "/settings")
+		return
 		if !c.Repo.IsOwner() {
 			c.NotFound()
 			return
@@ -246,6 +248,8 @@ func SettingsPost(c *context.Context, f form.RepoSetting) {
 		c.Redirect(conf.Server.Subpath + "/" + newOwner + "/" + repo.Name)
 
 	case "delete":
+		c.Redirect(c.Repo.RepoLink + "/settings")
+		return
 		if !c.Repo.IsOwner() {
 			c.NotFound()
 			return
@@ -272,6 +276,8 @@ func SettingsPost(c *context.Context, f form.RepoSetting) {
 		c.Redirect(c.Repo.Owner.DashboardLink())
 
 	case "delete-wiki":
+		c.Redirect(c.Repo.RepoLink + "/settings")
+		return
 		if !c.Repo.IsOwner() {
 			c.NotFound()
 			return
