@@ -45,6 +45,8 @@ type UsersStore interface {
 	GetByID(id int64) (*User, error)
 	// GetByUsername returns the user with given username. It returns ErrUserNotExist when not found.
 	GetByUsername(username string) (*User, error)
+	// GetByChanYeID returns the user with given chanye_id. It returns ErrUserNotExist when not found.
+	GetByChanYeID(chanyeID string) (*User, error)
 }
 
 var Users UsersStore
@@ -310,6 +312,18 @@ func (db *users) GetByID(id int64) (*User, error) {
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrUserNotExist{args: errutil.Args{"userID": id}}
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+func (db *users) GetByChanYeID(chanyeID string) (*User, error) {
+	user := new(User)
+	err := db.Where("chanye_id = ?", chanyeID).First(user).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrUserNotExist{args: errutil.Args{"chanye_id": chanyeID}}
 		}
 		return nil, err
 	}

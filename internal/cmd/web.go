@@ -188,14 +188,14 @@ func runWeb(c *cli.Context) error {
 		// ***** START: User *****
 		m.Group("/user", func() {
 			m.Group("/login", func() {
-				m.Combo("").Get(user.Login).
-					Post(bindIgnErr(form.SignIn{}), user.LoginPost)
+				m.Combo("").Get(user.Login).Post(bindIgnErr(form.SignIn{}), user.LoginPost)
 				m.Combo("/two_factor").Get(user.LoginTwoFactor).Post(user.LoginTwoFactorPost)
 				m.Combo("/two_factor_recovery_code").Get(user.LoginTwoFactorRecoveryCode).Post(user.LoginTwoFactorRecoveryCodePost)
 			})
 
-			m.Get("/sign_up", user.SignUp)
-			m.Post("/sign_up", bindIgnErr(form.Register{}), user.SignUpPost)
+			// m.Get("/sign_up", user.SignUp)
+			// TODO 注释掉注册账号接口，后续由代码生成
+			// m.Post("/sign_up", bindIgnErr(form.Register{}), user.SignUpPost)
 			m.Get("/reset_password", user.ResetPasswd)
 			m.Post("/reset_password", user.ResetPasswdPost)
 		}, reqSignOut)

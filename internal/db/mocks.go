@@ -213,10 +213,15 @@ type MockUsersStore struct {
 	MockGetByEmail    func(email string) (*User, error)
 	MockGetByID       func(id int64) (*User, error)
 	MockGetByUsername func(username string) (*User, error)
+	MockGetByChanYeID func(chanyeID string) (*User, error)
 }
 
 func (m *MockUsersStore) Authenticate(username, password string, loginSourceID int64) (*User, error) {
 	return m.MockAuthenticate(username, password, loginSourceID)
+}
+
+func (m *MockUsersStore) GetByChanYeID(chanyeID string) (*User, error) {
+	return m.MockGetByChanYeID(chanyeID)
 }
 
 func (m *MockUsersStore) Create(username, email string, opts CreateUserOpts) (*User, error) {

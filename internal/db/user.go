@@ -100,6 +100,7 @@ type User struct {
 	NumMembers  int
 	Teams       []*Team `xorm:"-" gorm:"-" json:"-"`
 	Members     []*User `xorm:"-" gorm:"-" json:"-"`
+	ChanyeId    string  `xorm:"VARCHAR(50) NOT NULL" gorm:"TYPE:VARCHAR(50);NOT NULL"`
 }
 
 func (u *User) BeforeInsert() {
