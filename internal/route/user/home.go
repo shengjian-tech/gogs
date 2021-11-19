@@ -164,6 +164,70 @@ func Dashboard(c *context.Context) {
 	c.Success(DASHBOARD)
 }
 
+func GetRepos(c *context.Context) {
+	var err error
+	userName := c.Params("name")
+	u, err := db.GetUserByName(userName)
+	if err != nil {
+		c.Error(err, "get user failed")
+		return
+	}
+	c.User = u
+	ctxUser := getDashboardContextUser(c)
+	if c.Written() {
+		return
+	}
+	retrieveFeeds(c, ctxUser, c.User.ID, false)
+	if c.Written() {
+		return
+	}
+
+	if c.Req.Header.Get("X-AJAX") == "true" {
+		c.Success(NEWS_FEED)
+		return
+	}
+
+	c.Data["Title"] = ctxUser.DisplayName() + " - " + c.Tr("dashboard")
+	c.Data["PageIsDashboard"] = true
+	c.Data["PageIsNews"] = true
+
+	// Only user can have collaborative repositories.
+	if !ctxUser.IsOrganization() {
+		collaborateRepos, err := c.User.GetAccessibleRepositories(conf.UI.User.RepoPagingNum)
+		if err != nil {
+			c.Error(err, "get accessible repositories")
+			return
+		} else if err = db.RepositoryList(collaborateRepos).LoadAttributes(); err != nil {
+			c.Error(err, "load attributes")
+			return
+		}
+		c.Data["CollaborativeRepos"] = collaborateRepos
+	}
+
+	var repos []*db.Repository
+	if ctxUser.IsOrganization() {
+		repos, _, err = ctxUser.GetUserRepositories(c.User.ID, 1, conf.UI.User.RepoPagingNum)
+		if err != nil {
+			c.Error(err, "get user repositories")
+			return
+		}
+
+	} else {
+		if err = ctxUser.GetRepositories(1, conf.UI.User.RepoPagingNum); err != nil {
+			c.Error(err, "get repositories")
+			return
+		}
+		repos = ctxUser.Repos
+		_ = int64(ctxUser.NumRepos)
+	}
+
+	var rsp []string
+	for _, v := range repos {
+		rsp = append(rsp, v.Name)
+	}
+	c.JSONSuccess(rsp)
+}
+
 func Issues(c *context.Context) {
 	isPullList := c.Params(":type") == "pulls"
 	if isPullList {

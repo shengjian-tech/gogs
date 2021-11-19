@@ -38,6 +38,8 @@ type UsersStore interface {
 	// It returns ErrUserAlreadyExist when a user with same name already exists,
 	// or ErrEmailAlreadyUsed if the email has been used by another user.
 	Create(username, email string, opts CreateUserOpts) (*User, error)
+	// new user insert to db
+	CreateUser(user User) (*User, error)
 	// GetByEmail returns the user (not organization) with given email.
 	// It ignores records with unverified emails and returns ErrUserNotExist when not found.
 	GetByEmail(email string) (*User, error)
@@ -243,6 +245,57 @@ func (db *users) Create(username, email string, opts CreateUserOpts) (*User, err
 		IsAdmin:         opts.Admin,
 		Avatar:          cryptoutil.MD5(email),
 		AvatarEmail:     email,
+	}
+
+	user.Rands, err = GetUserSalt()
+	if err != nil {
+		return nil, err
+	}
+	user.Salt, err = GetUserSalt()
+	if err != nil {
+		return nil, err
+	}
+	user.EncodePassword()
+
+	return user, db.DB.Create(user).Error
+}
+func (db *users) CreateUser(insertUser User) (*User, error) {
+	err := isUsernameAllowed(insertUser.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = db.GetByUsername(insertUser.Name)
+	if err == nil {
+		return nil, ErrUserAlreadyExist{args: errutil.Args{"name": insertUser.Name}}
+	} else if !IsErrUserNotExist(err) {
+		return nil, err
+	}
+
+	_, err = db.GetByEmail(insertUser.Email)
+	if err == nil {
+		return nil, ErrEmailAlreadyUsed{args: errutil.Args{"email": insertUser.Email}}
+	} else if !IsErrUserNotExist(err) {
+		return nil, err
+	}
+
+	user := &User{
+		LowerName:       strings.ToLower(insertUser.Name),
+		Name:            insertUser.Name,
+		FullName:        insertUser.FullName,
+		Email:           insertUser.Email,
+		Passwd:          insertUser.Passwd,
+		LoginSource:     insertUser.LoginSource,
+		LoginName:       insertUser.LoginName,
+		Location:        insertUser.Location,
+		Website:         insertUser.Website,
+		MaxRepoCreation: -1,
+		IsActive:        insertUser.IsActive,
+		IsAdmin:         insertUser.IsAdmin,
+		Avatar:          cryptoutil.MD5(insertUser.Email),
+		AvatarEmail:     insertUser.AvatarEmail,
+		UseCustomAvatar: true,
+		ChanyeId:        insertUser.ChanyeId,
 	}
 
 	user.Rands, err = GetUserSalt()

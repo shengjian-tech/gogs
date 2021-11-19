@@ -48,7 +48,7 @@ const (
 
 // User represents the object of individual and member of organization.
 type User struct {
-	ID        int64
+	ID        int64  `xorm:"id BIGINT(20) pk autoincr" gorm:"id;TYPE:BIGINT(10); primary_key;AUTO_INCREMENT"`
 	LowerName string `xorm:"UNIQUE NOT NULL" gorm:"UNIQUE"`
 	Name      string `xorm:"UNIQUE NOT NULL" gorm:"NOT NULL"`
 	FullName  string
@@ -501,7 +501,7 @@ func NewGhostUser() *User {
 }
 
 var (
-	reservedUsernames    = []string{"-", "explore", "create", "assets", "css", "img", "js", "less", "plugins", "debug", "raw", "install", "api", "avatar", "user", "org", "help", "stars", "issues", "pulls", "commits", "repo", "template", "admin", "new", ".", ".."}
+	reservedUsernames    = []string{"-", "explore", "create", "assets", "css", "img", "js", "less", "plugins", "debug", "raw", "install", "api", "avatar", "user", "org", "help", "stars", "issues", "pulls", "commits", "repo", "template" /**"admin",**/, "new", ".", ".."}
 	reservedUserPatterns = []string{"*.keys"}
 )
 

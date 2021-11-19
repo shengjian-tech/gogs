@@ -170,7 +170,6 @@ func runWeb(c *cli.Context) error {
 	bindIgnErr := binding.BindIgnErr
 
 	m.SetAutoHead(true)
-
 	m.Group("", func() {
 		m.Get("/", ignSignIn, route.Home)
 		m.Group("/explore", func() {
@@ -180,6 +179,7 @@ func runWeb(c *cli.Context) error {
 			m.Get("/repos", route.ExploreRepos)
 			m.Get("/users", route.ExploreUsers)
 			m.Get("/organizations", route.ExploreOrganizations)
+			m.Get("/repos/count/:name", user.GetRepos)
 		}, ignSignIn)
 		m.Combo("/install", route.InstallInit).Get(route.Install).
 			Post(bindIgnErr(form.Install{}), route.InstallPost)
@@ -188,7 +188,7 @@ func runWeb(c *cli.Context) error {
 		// ***** START: User *****
 		m.Group("/user", func() {
 			m.Group("/login", func() {
-				m.Combo("").Get(user.Login).Post(bindIgnErr(form.SignIn{}), user.LoginPost)
+				m.Combo("").Get(bindIgnErr(form.SignIn{}), user.LoginPost)
 				m.Combo("/two_factor").Get(user.LoginTwoFactor).Post(user.LoginTwoFactorPost)
 				m.Combo("/two_factor_recovery_code").Get(user.LoginTwoFactorRecoveryCode).Post(user.LoginTwoFactorRecoveryCodePost)
 			})

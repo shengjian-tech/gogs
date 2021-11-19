@@ -214,6 +214,11 @@ type MockUsersStore struct {
 	MockGetByID       func(id int64) (*User, error)
 	MockGetByUsername func(username string) (*User, error)
 	MockGetByChanYeID func(chanyeID string) (*User, error)
+	MockCreateUser    func(user User) (*User, error)
+}
+
+func (m *MockUsersStore) CreateUser(user User) (*User, error) {
+	return m.MockCreateUser(user)
 }
 
 func (m *MockUsersStore) Authenticate(username, password string, loginSourceID int64) (*User, error) {

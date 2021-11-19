@@ -5,17 +5,10 @@
 package user
 
 import (
-	"crypto/md5"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"strings"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/go-macaron/captcha"
-	"github.com/toolkits/pkg/logger"
-	"github.com/wenzhenxi/gorsa"
 	log "unknwon.dev/clog/v2"
 
 	"gogs.io/gogs/internal/conf"
@@ -152,48 +145,6 @@ func afterLogin(c *context.Context, u *db.User, remember bool) {
 }
 
 func LoginPost(c *context.Context, f form.SignIn) {
-	// TODO  利用产业大脑的 token 登录
-	token := c.Req.Header.Get("jwttoken")
-	// 解密 token
-	plainTest, err := parseRSAToken(token)
-	if err != nil {
-		logger.Errorf("[error_parse_rsa_token][err: %v]", err)
-		c.Error(err, "list activated login sources")
-		return
-	}
-	// TODO 解析token 获得用户ID
-	result, err := jwt.DecodeSegment(strings.Split(plainTest, ".")[1])
-	if err != nil {
-		c.Error(err, "error_parse_token")
-		return
-	}
-	var tmp = make(map[string]interface{}, 0)
-	err = json.Unmarshal(result, &tmp)
-	if err != nil {
-		c.Error(err, "error_parse_token")
-		return
-	}
-	userID := tmp["userId"].(string)
-	// 生成secert 校验
-	secert := getJwtSecret(userID)
-	// 校验token 是否有效
-	_, err = jwt.Parse(plainTest, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method,SigningMethodHMAC")
-		}
-		return []byte(secert), nil
-	})
-	if err != nil {
-		c.Error(err, "[error_parse_token]")
-		return
-	}
-	// token的秘钥使用 userID 生成的，所以传入 token 和 userID（生成secert），token解析成功即token可用。
-	// TODO 应为 产业大脑与夜莺两套账户体系，目前就先凑和，产业大脑 admin用户 对应 夜莺的root用户登录
-	user, err := db.Users.GetByChanYeID(userID)
-	if err != nil {
-		c.Error(err, "[get user by user id failed]")
-		return
-	}
 	c.Title("sign_in")
 	loginSources, err := db.LoginSources.List(db.ListLoginSourceOpts{OnlyActivated: true})
 	if err != nil {
@@ -205,35 +156,14 @@ func LoginPost(c *context.Context, f form.SignIn) {
 		c.Success(LOGIN)
 		return
 	}
-	// u, err := db.Users.Authenticate(user.Name, user.Passwd, user.LoginSource)
-	// if err != nil {
-	// 	switch errors.Cause(err).(type) {
-	// 	case auth.ErrBadCredentials:
-	// 		c.FormErr("UserName", "Password")
-	// 		c.RenderWithErr(c.Tr("form.username_password_incorrect"), LOGIN, &f)
-	// 	case db.ErrLoginSourceMismatch:
-	// 		c.FormErr("LoginSource")
-	// 		c.RenderWithErr(c.Tr("form.auth_source_mismatch"), LOGIN, &f)
-
-	// 	default:
-	// 		c.Error(err, "authenticate user")
-	// 	}
-	// 	for i := range loginSources {
-	// 		if loginSources[i].IsDefault {
-	// 			c.Data["DefaultLoginSource"] = loginSources[i]
-	// 			break
-	// 		}
-	// 	}
-	// 	return
-	// }
-
-	// if !u.IsEnabledTwoFactor() {
-	// 	afterLogin(c, u, f.Remember)
-	// 	return
-	// }
-
-	// _ = c.Session.Set("twoFactorRemember", f.Remember)
-	_ = c.Session.Set("twoFactorUserID", user.ID)
+	if c.User == nil {
+		c.RedirectSubpath("/")
+		return
+	}
+	if !c.User.IsEnabledTwoFactor() {
+		afterLogin(c, c.User, f.Remember)
+		return
+	}
 	c.RedirectSubpath("/user/login/two_factor")
 }
 
@@ -611,29 +541,4 @@ func ResetPasswdPost(c *context.Context) {
 
 	c.Data["IsResetFailed"] = true
 	c.Success(RESET_PASSWORD)
-}
-
-// 与产业大脑 RSA 解密 token 的公钥一致
-var PubKey = `-----BEGIN 公钥-----
-MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDF0KvU+madkXy6Ij9RblPbFcARktp+VdIb9StULenzpfSK2PzMh+4iS3LVqTbAeMT9B+gvTEeXlcp/7vO8CaumJAQ9ID3gDpddpOTYTXMF8sMP52kAiaJzHik7idfesHNRv2N8IfM4ZlhLyydlrImJ61oEcP6WgE4xWcRqpXdBUQIDAQAB
------END 公钥-----
-`
-
-// parseRSAToken 用公钥解密 RSA 私钥加密的方法
-func parseRSAToken(token string) (string, error) {
-	resultToken, err := gorsa.PublicDecrypt(token, PubKey)
-	if err != nil {
-		return "", err
-	}
-	// fmt.Println("--------------", resultToken)
-	return resultToken, nil
-}
-
-// getJwtSecret 与产业大脑生成签名秘钥的方法一致 32位的MD5加密 需要 userid
-func getJwtSecret(userID string) string {
-	// fmt.Println("userID", userID)
-	var jwtSecret = "shengjian.net+sdaflewkffreg"
-	h := md5.New()
-	h.Write([]byte(userID + jwtSecret))
-	return hex.EncodeToString(h.Sum(nil))
 }

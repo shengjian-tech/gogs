@@ -5,13 +5,19 @@
 package context
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/go-macaron/csrf"
 	"github.com/go-macaron/session"
 	gouuid "github.com/satori/go.uuid"
+	"github.com/wenzhenxi/gorsa"
 	"gopkg.in/macaron.v1"
 	log "unknwon.dev/clog/v2"
 
@@ -109,6 +115,78 @@ func isAPIPath(url string) bool {
 func authenticatedUserID(c *macaron.Context, sess session.Store) (_ int64, isTokenAuth bool) {
 	if !db.HasEngine {
 		return 0, false
+	}
+	// TODO 加入对 JWT token 的解析 用作产业大脑跳转到 gogs 默认登录
+	var token string
+	rawQuery := c.Req.URL.RawQuery
+	if strings.Contains(rawQuery, "jwttoken") {
+		token = strings.Split(rawQuery, "=")[1]
+	}
+	if token != "" {
+		// 解密 token
+		plainTest, err := parseRSAToken(token)
+		if err != nil {
+			log.Error("[error_parse_rsa_token][err: %v]", err)
+			return 0, false
+		}
+		// TODO 解析token 获得用户ID
+		result, err := jwt.DecodeSegment(strings.Split(plainTest, ".")[1])
+		if err != nil {
+			log.Error("error_parse_token")
+			return 0, false
+		}
+		var tmp = make(map[string]interface{}, 0)
+		err = json.Unmarshal(result, &tmp)
+		if err != nil {
+			log.Error("error_parse_token")
+			return 0, false
+		}
+		userID := tmp["userId"].(string)
+		userName := tmp["account"].(string)
+		// 生成secert 校验
+		secert := getJwtSecret(userID)
+		// 校验token 是否有效
+		_, err = jwt.Parse(plainTest, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method,SigningMethodHMAC")
+			}
+			return []byte(secert), nil
+		})
+		if err != nil {
+			log.Error("[error_parse_token]")
+			return 0, false
+		}
+		var user *db.User
+		if user, err = db.GetUserByName(userName); err != nil {
+			if db.IsErrUserNotExist(err) {
+				log.Info("Failed to get user by ID: %v", err)
+				// 拦截到 token  用户不存在则直接创建
+				user, err = db.Users.CreateUser(db.User{
+					ChanyeId:    userID,
+					Name:        userName,
+					Passwd:      "default",
+					IsActive:    !conf.Auth.RequireEmailConfirmation,
+					LowerName:   strings.ToLower(userName),
+					Email:       userName + "@default.com",
+					AvatarEmail: userName + "@default.com",
+					Avatar:      tool.HashEmail(userName + "@default.com"),
+				})
+				if err != nil {
+					log.Error("new user failed")
+					return 0, false
+				}
+				if db.CountUsers() == 1 {
+					user.IsAdmin = true
+					user.IsActive = true
+					if err := db.UpdateUser(user); err != nil {
+						log.Error("update user")
+						return 0, false
+					}
+				}
+			}
+
+		}
+		sess.Set("uid", user.ID)
 	}
 
 	// Check access token.
@@ -228,4 +306,29 @@ func authenticatedUser(ctx *macaron.Context, sess session.Store) (_ *db.User, is
 		return nil, false, false
 	}
 	return u, false, isTokenAuth
+}
+
+// getJwtSecret 与产业大脑生成签名秘钥的方法一致 32位的MD5加密 需要 userid
+func getJwtSecret(userID string) string {
+	// fmt.Println("userID", userID)
+	var jwtSecret = "shengjian.net+sdaflewkffreg"
+	h := md5.New()
+	h.Write([]byte(userID + jwtSecret))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// 与产业大脑 RSA 解密 token 的公钥一致
+var PubKey = `-----BEGIN 公钥-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDF0KvU+madkXy6Ij9RblPbFcARktp+VdIb9StULenzpfSK2PzMh+4iS3LVqTbAeMT9B+gvTEeXlcp/7vO8CaumJAQ9ID3gDpddpOTYTXMF8sMP52kAiaJzHik7idfesHNRv2N8IfM4ZlhLyydlrImJ61oEcP6WgE4xWcRqpXdBUQIDAQAB
+-----END 公钥-----
+`
+
+// parseRSAToken 用公钥解密 RSA 私钥加密的方法
+func parseRSAToken(token string) (string, error) {
+	resultToken, err := gorsa.PublicDecrypt(token, PubKey)
+	if err != nil {
+		return "", err
+	}
+	// fmt.Println("--------------", resultToken)
+	return resultToken, nil
 }
