@@ -233,7 +233,7 @@ func runWeb(c *cli.Context) error {
 			m.Combo("/applications").Get(user.SettingsApplications).
 				Post(bindIgnErr(form.NewAccessToken{}), user.SettingsApplicationsPost)
 			m.Post("/applications/delete", user.SettingsDeleteApplication)
-			m.Route("/delete", "GET,POST", user.SettingsDelete)
+			// m.Route("/delete", "GET,POST", user.SettingsDelete)
 		}, reqSignIn, func(c *context.Context) {
 			c.Data["PageIsUserSettings"] = true
 		})
@@ -244,7 +244,7 @@ func runWeb(c *cli.Context) error {
 			m.Get("/email2user", user.Email2User)
 			m.Get("/forget_password", user.ForgotPasswd)
 			m.Post("/forget_password", user.ForgotPasswdPost)
-			m.Post("/logout", user.SignOut)
+			// m.Post("/logout", user.SignOut)
 		})
 		// ***** END: User *****
 
@@ -261,7 +261,7 @@ func runWeb(c *cli.Context) error {
 				m.Get("", admin.Users)
 				m.Combo("/new").Get(admin.NewUser).Post(bindIgnErr(form.AdminCrateUser{}), admin.NewUserPost)
 				m.Combo("/:userid").Get(admin.EditUser).Post(bindIgnErr(form.AdminEditUser{}), admin.EditUserPost)
-				m.Post("/:userid/delete", admin.DeleteUser)
+				// m.Post("/:userid/delete", admin.DeleteUser)
 			})
 
 			m.Group("/orgs", func() {
@@ -270,7 +270,8 @@ func runWeb(c *cli.Context) error {
 
 			m.Group("/repos", func() {
 				m.Get("", admin.Repos)
-				m.Post("/delete", admin.DeleteRepo)
+				// TODO 删除管理员删除仓库操作
+				// m.Post("/delete", admin.DeleteRepo)
 			})
 
 			m.Group("/auths", func() {

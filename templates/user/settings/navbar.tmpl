@@ -28,8 +28,9 @@
 		<a class="{{if .PageIsSettingsApplications}}active{{end}} item" href="{{AppSubURL}}/user/settings/applications">
 			{{.i18n.Tr "settings.applications"}}
 		</a>
-		<a class="{{if .PageIsSettingsDelete}}active{{end}} item" href="{{AppSubURL}}/user/settings/delete">
+		<!-- 禁用删除功能 -->
+		<!-- <a class="{{if .PageIsSettingsDelete}}active{{end}} item" href="{{AppSubURL}}/user/settings/delete">
 			{{.i18n.Tr "settings.delete"}}
-		</a>
+		</a> -->
 	</div>
 </div>

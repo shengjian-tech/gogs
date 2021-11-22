@@ -24,7 +24,8 @@
 								<th>{{.i18n.Tr "admin.repos.issues"}}</th>
 								<th>{{.i18n.Tr "admin.repos.size"}}</th>
 								<th>{{.i18n.Tr "admin.users.created"}}</th>
-								<th>{{.i18n.Tr "admin.notices.op"}}</th>
+								<!-- 禁用删除功能 -->
+								<!-- <th>{{.i18n.Tr "admin.notices.op"}}</th> -->
 							</tr>
 						</thead>
 						<tbody>
@@ -39,7 +40,8 @@
 									<td>{{.NumIssues}}</td>
 									<td>{{.Size | FileSize}}</td>
 									<td><span title="{{DateFmtLong .Created}}">{{DateFmtShort .Created}}</span></td>
-									<td><a class="delete-button" href="" data-url="{{$.Link}}/delete?page={{$.Page.Current}}" data-id="{{.ID}}"><i class="trash icon text red"></i></a></td>
+									<!-- 禁用删除功能 -->
+									<!-- <td><a class="delete-button" href="" data-url="{{$.Link}}/delete?page={{$.Page.Current}}" data-id="{{.ID}}"><i class="trash icon text red"></i></a></td> -->
 								</tr>
 							{{end}}
 						</tbody>
