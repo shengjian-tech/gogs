@@ -150,6 +150,66 @@ func ForkPost(c *context.Context, f form.CreateRepo) {
 	c.Redirect(repo.Link())
 }
 
+func BackendPost(c *context.Context, f form.CreateRepo) {
+	c.Data["Title"] = c.Tr("new_fork")
+
+	baseRepo := parseBaseRepository(c)
+	if c.Written() {
+		return
+	}
+
+	ctxUser := checkContextUser(c, f.UserID)
+	if c.Written() {
+		return
+	}
+	c.Data["ContextUser"] = ctxUser
+
+	if c.HasError() {
+		c.JSONSuccess("fork failed")
+		return
+	}
+
+	repo, has, err := db.HasForkedRepo(ctxUser.ID, baseRepo.ID)
+	if err != nil {
+		c.JSONSuccess("fork failed")
+		return
+	} else if has {
+		c.JSONSuccess(repo.Name)
+		return
+	}
+
+	// Check ownership of organization.
+	if ctxUser.IsOrganization() && !ctxUser.IsOwnedBy(c.User.ID) {
+		c.JSONSuccess("fork failed")
+		return
+	}
+
+	// Cannot fork to same owner
+	if ctxUser.ID == baseRepo.OwnerID {
+		c.JSONSuccess("fork failed")
+		return
+	}
+
+	repo, err = db.ForkRepository(c.User, ctxUser, baseRepo, f.RepoName, f.Description)
+	if err != nil {
+		c.Data["Err_RepoName"] = true
+		switch {
+		case db.IsErrReachLimitOfRepo(err):
+			c.JSONSuccess("fork failed")
+		case db.IsErrRepoAlreadyExist(err):
+			c.JSONSuccess("fork failed")
+		case db.IsErrNameNotAllowed(err):
+			c.JSONSuccess("fork failed")
+		default:
+			c.JSONSuccess("fork failed")
+		}
+		return
+	}
+
+	log.Trace("Repository forked from '%s' -> '%s'", baseRepo.FullName(), repo.FullName())
+	c.JSONSuccess(repo.Name)
+}
+
 func checkPullInfo(c *context.Context) *db.Issue {
 	issue, err := db.GetIssueByIndex(c.Repo.Repository.ID, c.ParamsInt64(":index"))
 	if err != nil {

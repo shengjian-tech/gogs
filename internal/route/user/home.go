@@ -220,12 +220,7 @@ func GetRepos(c *context.Context) {
 		repos = ctxUser.Repos
 		_ = int64(ctxUser.NumRepos)
 	}
-
-	var rsp []string
-	for _, v := range repos {
-		rsp = append(rsp, v.Name)
-	}
-	c.JSONSuccess(rsp)
+	c.JSONSuccess(repos)
 }
 
 func Issues(c *context.Context) {

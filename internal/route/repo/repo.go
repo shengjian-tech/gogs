@@ -144,6 +144,50 @@ func CreatePost(c *context.Context, f form.CreateRepo) {
 	handleCreateError(c, ctxUser, err, "CreatePost", CREATE, &f)
 }
 
+func CreatePostV1(c *context.Context, f form.CreateRepo) {
+	c.Data["Title"] = c.Tr("new_repo")
+
+	c.Data["Gitignores"] = db.Gitignores
+	c.Data["Licenses"] = db.Licenses
+	c.Data["Readmes"] = db.Readmes
+
+	ctxUser := checkContextUser(c, f.UserID)
+	if c.Written() {
+		c.JSONString("create failed")
+		return
+	}
+	c.Data["ContextUser"] = ctxUser
+
+	if c.HasError() {
+		c.JSONString("create failed")
+		return
+	}
+
+	repo, err := db.CreateRepository(c.User, ctxUser, db.CreateRepoOptions{
+		Name:        f.RepoName,
+		Description: f.Description,
+		Gitignores:  f.Gitignores,
+		License:     f.License,
+		Readme:      f.Readme,
+		IsPrivate:   f.Private || conf.Repository.ForcePrivate,
+		IsUnlisted:  f.Unlisted,
+		AutoInit:    f.AutoInit,
+	})
+	if err == nil {
+		log.Trace("Repository created [%d]: %s/%s", repo.ID, ctxUser.Name, repo.Name)
+		c.JSONSuccess("create success")
+		return
+	}
+
+	if repo != nil {
+		if errDelete := db.DeleteRepository(ctxUser.ID, repo.ID); errDelete != nil {
+			log.Error("DeleteRepository: %v", errDelete)
+			c.JSONSuccess("create failed")
+			return
+		}
+	}
+}
+
 func Migrate(c *context.Context) {
 	c.Data["Title"] = c.Tr("new_migrate")
 	c.Data["private"] = c.User.LastRepoVisibility

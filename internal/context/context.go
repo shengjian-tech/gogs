@@ -245,7 +245,6 @@ func Contexter() macaron.Handler {
 		}
 		c.Data["Link"] = template.EscapePound(c.Link)
 		c.Data["PageStartTime"] = time.Now()
-
 		if len(conf.HTTP.AccessControlAllowOrigin) > 0 {
 			c.Header().Set("Access-Control-Allow-Origin", conf.HTTP.AccessControlAllowOrigin)
 			c.Header().Set("Access-Control-Allow-Credentials", "true")
