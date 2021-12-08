@@ -220,6 +220,11 @@ func GetRepos(c *context.Context) {
 		repos = ctxUser.Repos
 		_ = int64(ctxUser.NumRepos)
 	}
+	if len(repos) < 1 {
+		repos = append(repos, &db.Repository{
+			OwnerID: u.ID,
+		})
+	}
 	c.JSONSuccess(repos)
 }
 
