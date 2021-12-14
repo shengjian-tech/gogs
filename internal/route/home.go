@@ -82,6 +82,23 @@ func ExploreRepos(c *context.Context) {
 	c.Success(EXPLORE_REPOS)
 }
 
+type ResCookie struct {
+	CsrfCookie string `json:"_csrf"`
+	LikeGogs   string `json:"i_like_gogs"`
+}
+
+func GetCookie(c *context.Context) {
+	csrfToken := c.Data["CSRFToken"]
+	i_like_gogs := c.Session.ID()
+	var resCookie ResCookie
+	s, ok := csrfToken.(string)
+	if ok {
+		resCookie.CsrfCookie = s
+	}
+	resCookie.LikeGogs = i_like_gogs
+	c.JSONSuccess(resCookie)
+}
+
 type UserSearchOptions struct {
 	Type     db.UserType
 	Counter  func() int64

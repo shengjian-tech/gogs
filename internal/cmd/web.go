@@ -171,6 +171,7 @@ func runWeb(c *cli.Context) error {
 
 	m.SetAutoHead(true)
 	m.Group("", func() {
+		m.Get("/get/cookie", route.GetCookie)
 		m.Get("/", ignSignIn, route.Home)
 		m.Group("/explore", func() {
 			m.Get("", func(c *context.Context) {
@@ -192,7 +193,6 @@ func runWeb(c *cli.Context) error {
 				m.Combo("/two_factor").Get(user.LoginTwoFactor).Post(user.LoginTwoFactorPost)
 				m.Combo("/two_factor_recovery_code").Get(user.LoginTwoFactorRecoveryCode).Post(user.LoginTwoFactorRecoveryCodePost)
 			})
-
 			// m.Get("/sign_up", user.SignUp)
 			// TODO 注释掉注册账号接口，后续由代码生成
 			// m.Post("/sign_up", bindIgnErr(form.Register{}), user.SignUpPost)
