@@ -10,7 +10,7 @@
 
    >去除页面登录，登出，注册按钮，改为与我们公司产业大脑业务连通自动注册，增加解析token功能，从token获取用户信息自动注册。
    >
-   >主要修改为 `internal/context/auth.go`的 `authenticatedUserID()`方法，在`internal/cmd/web.go`中注释掉注册，登出，登录等路由接口。
+   >主要修改为 `internal/context/auth.go`的 `authenticatedUserID()`方法，其中添加对于我们自己业务端jwttoken的解析，自动生成gogs用户等，在`internal/cmd/web.go`中注释掉注册，登出，登录等路由接口。
 
 3. ##### Modify（3）
 
@@ -45,7 +45,7 @@
    >  请求参数:`仓库ID`
    >
    >  响应数据:`返回fork仓库结果`
-   >- 获取设置到浏览器的Cookie数据
+   >- 获取设置到浏览器的Cookie数据,主要用于POST请求时，校验CSRF。
     >
    >  请求路径：`"/get/cookie?jwttoken=dada"` 
    >
@@ -54,3 +54,8 @@
    >  请求参数:`jwttoken`
    >
    >  响应数据:`返回需要设置到浏览器的Cookie数据`
+
+4. ##### Modify（4）
+> 如何进制用户强制push代码 git push -f 等操作。
+> 由于Gogs就是对git服务的封装，依赖本地git服务，所以可以在Gogs服务运行的机器执行下述命令 禁止强制提交代码
+> `git config --global receive.denyNonFastForwards true`
