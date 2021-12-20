@@ -59,3 +59,10 @@
 > 如何进制用户强制push代码 git push -f 等操作。
 > 由于Gogs就是对git服务的封装，依赖本地git服务，所以可以在Gogs服务运行的机器执行下述命令 禁止强制提交代码
 > `git config --global receive.denyNonFastForwards true`
+
+5. ##### 与超级链合约关联流程（5）
+
+![合约与Gogs配合流程](./complie_code/合约与Gogs配合流程.png)
+
+
+>编译合约为二进制文件的合约路径 `./complie_code/main.go`
