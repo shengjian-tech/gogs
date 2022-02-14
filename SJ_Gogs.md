@@ -30,7 +30,7 @@
    >
    >  请求路径：`"/repos/create/v1"` 
    >
-   >  请求方式：`Get`
+   >  请求方式：`Post`
    >
    >  请求参数:`仓库信息`
    >
@@ -40,12 +40,13 @@
    >
    >  请求路径：`"/fork/backend/:repoid"` 
    >
-   >  请求方式：`Get`
+   >  请求方式：`Post`
    >
    >  请求参数:`仓库ID`
    >
    >  响应数据:`返回fork仓库结果`
-   >- 获取设置到浏览器的Cookie数据,主要用于POST请求时，校验CSRF。
+
+   >- 获取设置到浏览器的Cookie数据,主要用于POST请求时，校验CSRF。主要用于其他服务端调用，例如Java程序调用对应接口时，缺少Cookie数据使用。
     >
    >  请求路径：`"/get/cookie?jwttoken=dada"` 
    >

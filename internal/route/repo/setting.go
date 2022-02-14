@@ -56,30 +56,30 @@ func SettingsPost(c *context.Context, f form.RepoSetting) {
 			return
 		}
 
-		isNameChanged := false
-		oldRepoName := repo.Name
-		newRepoName := f.RepoName
+		// isNameChanged := false
+		// oldRepoName := repo.Name
+		// newRepoName := f.RepoName
 		// Check if repository name has been changed.
-		if repo.LowerName != strings.ToLower(newRepoName) {
-			isNameChanged = true
-			if err := db.ChangeRepositoryName(c.Repo.Owner, repo.Name, newRepoName); err != nil {
-				c.FormErr("RepoName")
-				switch {
-				case db.IsErrRepoAlreadyExist(err):
-					c.RenderWithErr(c.Tr("form.repo_name_been_taken"), SETTINGS_OPTIONS, &f)
-				case db.IsErrNameNotAllowed(err):
-					c.RenderWithErr(c.Tr("repo.form.name_not_allowed", err.(db.ErrNameNotAllowed).Value()), SETTINGS_OPTIONS, &f)
-				default:
-					c.Error(err, "change repository name")
-				}
-				return
-			}
+		// if repo.LowerName != strings.ToLower(newRepoName) {
+		// 	isNameChanged = true
+		// 	if err := db.ChangeRepositoryName(c.Repo.Owner, repo.Name, newRepoName); err != nil {
+		// 		c.FormErr("RepoName")
+		// 		switch {
+		// 		case db.IsErrRepoAlreadyExist(err):
+		// 			c.RenderWithErr(c.Tr("form.repo_name_been_taken"), SETTINGS_OPTIONS, &f)
+		// 		case db.IsErrNameNotAllowed(err):
+		// 			c.RenderWithErr(c.Tr("repo.form.name_not_allowed", err.(db.ErrNameNotAllowed).Value()), SETTINGS_OPTIONS, &f)
+		// 		default:
+		// 			c.Error(err, "change repository name")
+		// 		}
+		// 		return
+		// 	}
 
-			log.Trace("Repository name changed: %s/%s -> %s", c.Repo.Owner.Name, repo.Name, newRepoName)
-		}
+		// 	log.Trace("Repository name changed: %s/%s -> %s", c.Repo.Owner.Name, repo.Name, newRepoName)
+		// }
 		// In case it's just a case change.
-		repo.Name = newRepoName
-		repo.LowerName = strings.ToLower(newRepoName)
+		// repo.Name = newRepoName
+		// repo.LowerName = strings.ToLower(newRepoName)
 
 		repo.Description = f.Description
 		repo.Website = f.Website
@@ -99,11 +99,11 @@ func SettingsPost(c *context.Context, f form.RepoSetting) {
 		}
 		log.Trace("Repository basic settings updated: %s/%s", c.Repo.Owner.Name, repo.Name)
 
-		if isNameChanged {
-			if err := db.RenameRepoAction(c.User, oldRepoName, repo); err != nil {
-				log.Error("RenameRepoAction: %v", err)
-			}
-		}
+		// if isNameChanged {
+		// 	if err := db.RenameRepoAction(c.User, oldRepoName, repo); err != nil {
+		// 		log.Error("RenameRepoAction: %v", err)
+		// 	}
+		// }
 
 		c.Flash.Success(c.Tr("repo.settings.update_settings_success"))
 		c.Redirect(repo.Link() + "/settings")

@@ -30,7 +30,7 @@ func (s *counter) PullCodeComplie(ctx code.Context) code.Response {
 	repoName := string(ctx.Args()["repoName"])
 	address := string(ctx.Args()["gitAddr"])
 	branch := string(ctx.Args()["branch"])
-	commitID := string(ctx.Args()["commitID"])
+	tag := string(ctx.Args()["tag"])
 
 	contractName := string(ctx.Args()["contractName"])
 	if strings.TrimSpace(address) == "" {
@@ -59,8 +59,8 @@ func (s *counter) PullCodeComplie(ctx code.Context) code.Response {
 		}
 
 		// 判断 commitID 是否为空 不为空 reset 到指定的 commitID
-		if strings.TrimSpace(commitID) != "" {
-			checkoutCommitCmd := exec.Command("sh", "-c", "cd "+repoPath+"&&"+" git checkout "+commitID)
+		if strings.TrimSpace(tag) != "" {
+			checkoutCommitCmd := exec.Command("sh", "-c", "cd "+repoPath+"&&"+" git checkout "+tag)
 			err = checkoutCommitCmd.Run()
 			if err != nil {
 				ctx.Logf("check out the commit failed %s", err.Error())
