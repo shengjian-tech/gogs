@@ -407,12 +407,12 @@ func runWeb(c *cli.Context) error {
 		m.Group("/repo", func() {
 			m.Get("/create", repo.Create)
 			m.Post("/create", bindIgnErr(form.CreateRepo{}), repo.CreatePost)
-			m.Post("/create/v1", bindIgnErr(form.CreateRepo{}), repo.CreatePostV1)
+			m.Get("/create/v1", bindIgnErr(form.CreateRepo{}), repo.CreatePostV1)
 			m.Get("/migrate", repo.Migrate)
 			m.Post("/migrate", bindIgnErr(form.MigrateRepo{}), repo.MigratePost)
 			m.Combo("/fork/:repoid").Get(repo.Fork).
 				Post(bindIgnErr(form.CreateRepo{}), repo.ForkPost)
-			m.Post("/fork/backend/:repoid", bindIgnErr(form.CreateRepo{}), repo.BackendPost)
+			m.Get("/fork/backend/:repoid", bindIgnErr(form.CreateRepo{}), repo.BackendPost)
 		}, reqSignIn)
 
 		m.Group("/:username/:reponame", func() {
