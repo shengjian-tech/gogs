@@ -1,69 +1,764 @@
-# SJ_Gogs  Update
+# 盛见Gogs改造
 
-1. ##### Modify（1）
+>TODO 用户已经修改为服务端直接连接Gogs 数据库，添加用户。
 
-   >取消仓库转移，删除仓库，删除仓库wiki的高危操作
-   >
-   >`internal/route/repo/setting.go`中仓库转移，仓库删除，删除仓库wiki等操作直接重定向到仓库页面。不做转移，删除操作。
+>针对现有区块链业务对 Gogs 系统进行改造，满足当前使用要求。仓库路径 https://github.com/shengjian-tech/gogs.git  的 `sj_gogs` 分支。
 
-2. ##### Modify（2）
+### 主要改造点
 
-   >去除页面登录，登出，注册按钮，改为与我们公司产业大脑业务连通自动注册，增加解析token功能，从token获取用户信息自动注册。
-   >
-   >主要修改为 `internal/context/auth.go`的 `authenticatedUserID()`方法，其中添加对于我们自己业务端jwttoken的解析，自动生成gogs用户等，在`internal/cmd/web.go`中注释掉注册，登出，登录等路由接口。
+#### 取消所有可能对仓库造成影响的高危操作
 
-3. ##### Modify（3）
+##### 1.仓库不能修改仓库名
 
-   >增加部分接口来适配我们自己的业务需求，新增了部分接口如下：
-   >
-   >- 获取用户仓库数量
-   >
-   >  请求路径：`"/repos/count/:name"` 
-   >
-   >  请求方式：`Get`
-   >
-   >  请求参数:`用户名（唯一）`
-   >
-   >  响应数据:`用户的仓库列表`
-   >
-   >- 用户创建仓库接口
-   >
-   >  请求路径：`"/repos/create/v1"` 
-   >
-   >  请求方式：`Post`
-   >
-   >  请求参数:`仓库信息`
-   >
-   >  响应数据:`创建仓库返回结果信息`
-   >
-   >- 用户fork指定仓库
-   >
-   >  请求路径：`"/fork/backend/:repoid"` 
-   >
-   >  请求方式：`Post`
-   >
-   >  请求参数:`仓库ID`
-   >
-   >  响应数据:`返回fork仓库结果`
+`internal/route/repo/setting.go`
 
-   >- 获取设置到浏览器的Cookie数据,主要用于POST请求时，校验CSRF。主要用于其他服务端调用，例如Java程序调用对应接口时，缺少Cookie数据使用。
-    >
-   >  请求路径：`"/get/cookie?jwttoken=dada"` 
-   >
-   >  请求方式：`Get`
-   >
-   >  请求参数:`jwttoken`
-   >
-   >  响应数据:`返回需要设置到浏览器的Cookie数据`
+```go
+func SettingsPost(c *context.Context, f form.RepoSetting) {
+	c.Title("repo.settings")
+	c.PageIs("SettingsOptions")
+	c.RequireAutosize()
 
-4. ##### Modify（4）
+	repo := c.Repo.Repository
+
+	switch c.Query("action") {
+	case "update":
+		if c.HasError() {
+			c.Success(SETTINGS_OPTIONS)
+			return
+}
+
+```
+
+##### 2.禁止仓库转移，删除，仓库wiki删除
+
+``internal/route/repo/setting.go`中这几项对仓库的高危操作删除。
+
+```go
+func SettingsPost(c *context.Context, f form.RepoSetting) {
+	c.Title("repo.settings")
+	c.PageIs("SettingsOptions")
+	c.RequireAutosize()
+
+	repo := c.Repo.Repository
+
+	switch c.Query("action") {
+	case "delete-wiki":  // 仓库wiki删除
+    case "delete":		// 删除
+    case "transfer":    // 仓库转移
+}
+
+```
+
+>`internal/route/repo/setting.go`中仓库转移，仓库删除，删除仓库wiki等操作直接重定向到仓库页面。不做转移，删除操作。
+
+#### 打通与业务端的账户体系
+
+##### 1.打通与政务数据共享的用户体系
+
+>政务数据共享后端生成用户时，自动在Gogs数据库用户表插入用户信息。打通两者用户体系。
+
+##### 2.去除Gogs登录页面，注册接口等
+
+> 去除登录页面，注册页面等。
+>
+> 注释掉账号注册，登出接口。
+>
+> `internal/cmd/web.go` 中 `/user/sign_up`  注册，`/user/logout` 登出等两个接口注释掉。
+
+##### 3.统一登录的JWT Token 生成与解析
+
+>通过适配政务数据系统后端的`JWT Token`, 实现一键登录，一键跳转直用户的Gogs仓库。
+>
+>具体修改代码位于 `internal/context/auth.go` 中的 `authenticatedUserID` 方法。
+
+### 新增接口满足业务需求
+
+>增加部分接口来适配我们自己的业务需求，新增了部分接口如下：
+>
+>所有请求接口都需要携带 政务数据共享平台的`JWT Token`
+
+##### 1.获取用户仓库数量
+
+>位于`internal/cmd/web.go`中
+>
+> 请求路径：`"/repos/count/:name"` 
+>
+>  请求方式：`Get`
+>
+>  请求参数:`用户名（唯一）`
+>
+>  响应数据:`用户的仓库列表`
+
+##### 2.用户创建仓库
+
+>位于`internal/cmd/web.go`中
+>
+>请求路径：`"/repos/create/v1"` 
+>
+> 请求方式：`Post`
+>
+> 请求参数:`仓库信息`
+>
+> 响应数据:`创建仓库返回结果信息`
+
+##### 3.用户fork 指定仓库
+
+>位于`internal/cmd/web.go`中
+>
+>请求路径：`"/fork/backend/:repoid"` 
+>
+> 请求方式：`Post`
+>
+> 请求参数:`仓库ID`
+>
+> 响应数据:`返回fork仓库结果`
+
+##### 4.获取Cookie
+
+>获取设置到浏览器的Cookie数据,主要用于POST请求时，校验CSRF。主要用于其他服务端调用，例如Java程序调用对应接口时，缺少Cookie数据使用。
+>
+>位于`internal/cmd/web.go`中
+>
+>请求路径：`"/get/cookie"` 
+>
+>请求方式：`Get`
+>
+>请求参数:无
+>
+>响应数据:`返回需要设置到浏览器的Cookie数据`
+
+### 禁止用户的强制 Push 代码操作
+
+> 防止用户恶意覆盖代码，禁止用户 使用 `git push -f ` 命令
 > 如何进制用户强制push代码 git push -f 等操作。
 > 由于Gogs就是对git服务的封装，依赖本地git服务，所以可以在Gogs服务运行的机器执行下述命令 禁止强制提交代码
-> `git config --global receive.denyNonFastForwards true`
+>
+> ```shell
+> git config --global receive.denyNonFastForwards true
+> ```
 
-5. ##### 与超级链合约关联流程（5）
+### 与超级链合约关联流程
 
 ![合约与Gogs配合流程](./complie_code/合约与Gogs配合流程.png)
 
+### Gogs 启动流程
 
->编译合约为二进制文件的合约路径 `./complie_code/main.go`
+##### 1.源码编译为二进制
+
+>程序入口文件为项目根路径下的 `gogs.go`，直接执行编译命令即可
+
+```shell
+go build -o gogs
+```
+
+##### 2.配置文件修改
+
+>配置文件位于项目根路径下的`conf/app.ini` ,  根据自己需求修改。
+>
+>```ini
+># !!! NEVER EVER MODIFY THIS FILE !!!
+># !!! PLEASE MAKE CHANGES ON CORRESPONDING CUSTOM CONFIG FILE !!!
+># !!! IF YOU ARE PACKAGING PROVIDER, PLEASE MAKE OWN COPY OF IT !!!
+>
+>; The brand name of the application, can be your company or team name.
+>BRAND_NAME = Gogs
+>; The system user who should be running the applications. It has no effect on Windows,
+>; otherwise, it should match the value of $USER environment variable.
+>RUN_USER = git
+>; The running mode of the application, can be either "dev", "prod" or "test".
+>RUN_MODE = dev
+>
+>[server]
+>; The public-facing URL for the application.
+>EXTERNAL_URL = %(PROTOCOL)s://%(DOMAIN)s:%(HTTP_PORT)s/
+>; The public-facing domain name for the application.
+>DOMAIN = localhost
+>; The protocol that is used to serve direct traffic to the application.
+>; Currently supports "http", "https", "fcgi" and "unix".
+>PROTOCOL = http
+>; The address to be listened by the application.
+>HTTP_ADDR = 0.0.0.0
+>; The port number to be listened by the application.
+>HTTP_PORT = 3000
+>; Generate steps:
+>; $ ./gogs cert -ca=true -duration=8760h0m0s -host=myhost.example.com
+>;
+>; Or from a .pfx file exported from the Windows certificate store (do
+>; not forget to export the private key):
+>; $ openssl pkcs12 -in cert.pfx -out cert.pem -nokeys
+>; $ openssl pkcs12 -in cert.pfx -out key.pem -nocerts -nodes
+>CERT_FILE = custom/https/cert.pem
+>KEY_FILE = custom/https/key.pem
+>; The minimum allowed TLS version, currently supports "TLS10", "TLS11", "TLS12", and "TLS13".
+>TLS_MIN_VERSION = TLS12
+>; File permission when serve traffic via Unix domain socket.
+>UNIX_SOCKET_PERMISSION = 666
+>; Local (DMZ) URL for workers (e.g. SSH update) accessing web service.
+>; In most cases you do not need to change the default value.
+>; Alter it only if your SSH server node is not the same as HTTP node.
+>LOCAL_ROOT_URL = %(PROTOCOL)s://%(HTTP_ADDR)s:%(HTTP_PORT)s/
+>
+>; Whether to disable using CDN for static files regardless.
+>OFFLINE_MODE = false
+>; Whether to disable logging in router.
+>DISABLE_ROUTER_LOG = true
+>; Whether to enable application level GZIP compression.
+>ENABLE_GZIP = false
+>
+>; The path for storing application specific data.
+>APP_DATA_PATH = data
+>; Whether to enable to load assets (i.e. "conf", "templates", "public") from disk instead of embedded bindata.
+>LOAD_ASSETS_FROM_DISK = true
+>
+>; The landing page URL for anonymous users, the value should not include
+>; subpath that is handled by the reverse proxy.
+>LANDING_URL = /
+>
+>; Whether to disable SSH access to the application entirely.
+>DISABLE_SSH = false
+>; The domain name to be exposed in SSH clone URL.
+>SSH_DOMAIN = %(DOMAIN)s
+>; The port number to be exposed in SSH clone URL.
+>SSH_PORT = 22
+>; The path of SSH root directory, default is "$HOME/.ssh".
+>SSH_ROOT_PATH =
+>; The path to ssh-keygen, default is "ssh-keygen" and let shell find out which one to call.
+>SSH_KEYGEN_PATH = ssh-keygen
+>; The directory to create temporary files when test a public key using ssh-keygen,
+>; default is the system temporary directory.
+>SSH_KEY_TEST_PATH =
+>; Whether to check minimum public key size with corresponding type.
+>MINIMUM_KEY_SIZE_CHECK = false
+>; Whether to rewrite "~/.ssh/authorized_keys" file at start, ignored when use builtin SSH server.
+>REWRITE_AUTHORIZED_KEYS_AT_START = false
+>; Whether to start a builtin SSH server.
+>START_SSH_SERVER = false
+>; The network interface for builtin SSH server to listen on.
+>SSH_LISTEN_HOST = 0.0.0.0
+>; The port number for builtin SSH server to listen on.
+>SSH_LISTEN_PORT = %(SSH_PORT)s
+>; The list of accepted ciphers for connections to builtin SSH server.
+>SSH_SERVER_CIPHERS = aes128-ctr, aes192-ctr, aes256-ctr, aes128-gcm@openssh.com, arcfour256, arcfour128
+>; The list of accepted MACs for connections to builtin SSH server.
+>SSH_SERVER_MACS = hmac-sha2-256-etm@openssh.com, hmac-sha2-256, hmac-sha1
+>
+>; Define allowed algorithms and their minimum key length (use -1 to disable a type).
+>[ssh.minimum_key_sizes]
+>ED25519 = 256
+>ECDSA   = 256
+>RSA     = 2048
+>DSA     = 1024
+>
+>[repository]
+>; The root path for storing managed repositories, default is "~/gogs-repositories"
+>ROOT =
+>; The script type server supports, sometimes could be "sh".
+>SCRIPT_TYPE = bash
+>; Default ANSI charset for an unrecognized charset.
+>ANSI_CHARSET =
+>; Whether to force every new repository to be private.
+>FORCE_PRIVATE = false
+>; The global limit of number of repositories a user can create, -1 means no limit.
+>MAX_CREATION_LIMIT = -1
+>; Preferred Licenses to place at the top of the list.
+>; Name must match file name in "conf/license" or "custom/conf/license".
+>PREFERRED_LICENSES = Apache License 2.0, MIT License
+>; Whether to disable Git interaction with repositories via HTTP/HTTPS protocol.
+>DISABLE_HTTP_GIT = false
+>; Whether to enable ability to migrate repository by server local path.
+>ENABLE_LOCAL_PATH_MIGRATION = false
+>; Whether to enable render mode for raw file. There are potential security risks.
+>ENABLE_RAW_FILE_RENDER_MODE = false
+>; The maximum number of goroutines that can be run at the same time for a single
+>; fetch request. Usually, the value depend of how many CPU (cores) you have. If
+>; the value is non-positive, it matches the number of CPUs available to the application.
+>COMMITS_FETCH_CONCURRENCY = 0
+>
+>[repository.editor]
+>; List of file extensions that should have line wraps in the CodeMirror editor.
+>; Separate extensions with a comma.
+>LINE_WRAP_EXTENSIONS = .txt,.md,.markdown,.mdown,.mkd
+>; Valid file modes that have a preview API associated with them, such as "/api/v1/markdown".
+>; Separate values by commas. Preview tab in edit mode won't show if the file extension doesn't match.
+>PREVIEWABLE_FILE_MODES = markdown
+>
+>[repository.upload]
+>; Whether to enable repository file uploads.
+>ENABLED = true
+>; The path to temporarily store uploads (content under this path gets wiped out on every start).
+>TEMP_PATH = data/tmp/uploads
+>; File types that are allowed to be uploaded, e.g. "image/jpeg|image/png". Leave empty to allow any file type.
+>ALLOWED_TYPES =
+>; The maximum size of each file in MB.
+>FILE_MAX_SIZE = 3
+>; The maximum number of files per upload.
+>MAX_FILES = 5
+>
+>[database]
+>; The database backend, either "postgres", "mysql" "sqlite3" or "mssql".
+>; You can connect to TiDB with MySQL protocol.
+>TYPE = postgres
+>HOST = 127.0.0.1:5432
+>NAME = gogs
+>USER = gogs
+>PASSWORD =
+>; For "postgres" only, either "disable", "require" or "verify-full".
+>SSL_MODE = disable
+>; For "sqlite3" only, make sure to use absolute path.
+>PATH = data/gogs.db
+>; The maximum open connections of the pool.
+>MAX_OPEN_CONNS = 30
+>; The maximum idle connections of the pool.
+>MAX_IDLE_CONNS = 30
+>
+>[security]
+>; Whether to show the install page, set this to "true" to bypass it.
+>INSTALL_LOCK = false
+>; The secret to encrypt cookie values, 2FA code, etc.
+>; !!CHANGE THIS TO KEEP YOUR USER DATA SAFE!!
+>SECRET_KEY = !#@FDEWREWR&*(
+>; The days remembered for auto-login.
+>LOGIN_REMEMBER_DAYS = 7
+>; The cookie name to store auto-login information.
+>COOKIE_REMEMBER_NAME = gogs_incredible
+>; The cookie name to store logged in username.
+>COOKIE_USERNAME = gogs_awesome
+>; Whether to set secure cookie.
+>COOKIE_SECURE = false
+>; Whether to set cookie to indicate user login status.
+>ENABLE_LOGIN_STATUS_COOKIE = false
+>; The cookie name to store user login status.
+>LOGIN_STATUS_COOKIE_NAME = login_status
+>
+>[email]
+>; Whether to enable the email service.
+>ENABLED = false
+>; The prefix prepended to the subject line.
+>SUBJECT_PREFIX = `[%(BRAND_NAME)s] `
+>; The SMTP server with its port, e.g. smtp.mailgun.org:587, smtp.gmail.com:587, smtp.qq.com:465
+>; If the port ends is "465", SMTPS will be used. Using STARTTLS on port 587 is recommended per RFC 6409.
+>; If the server supports STARTTLS it will always be used.
+>HOST = smtp.mailgun.org:587
+>; The email from address (RFC 5322). This can be just an email address, or the `"Name" <email@example.com>` format.
+>FROM = noreply@gogs.localhost
+>; The login user.
+>USER = noreply@gogs.localhost
+>; The login password.
+>PASSWORD =
+>
+>; Whether to disable HELO operation when the hostname is different.
+>DISABLE_HELO =
+>; The custom hostname for HELO operation, default is from system.
+>HELO_HOSTNAME =
+>
+>; Whether to skip verifying the certificate of the server. Only use this for self-signed certificates.
+>SKIP_VERIFY = false
+>; Whether to use client certificates.
+>USE_CERTIFICATE = false
+>CERT_FILE = custom/email/cert.pem
+>KEY_FILE = custom/email/key.pem
+>
+>; Whether to use "text/plain" as content format.
+>USE_PLAIN_TEXT = false
+>; Whether to attach a plaintext alternative to the MIME message while sending HTML emails.
+>; It is used to support older mail clients and make spam filters happier.
+>ADD_PLAIN_TEXT_ALT = false
+>
+>[auth]
+>; The valid duration of activate code in minutes.
+>ACTIVATE_CODE_LIVES = 180
+>; The valid duration of reset password code in minutes.
+>RESET_PASSWORD_CODE_LIVES = 180
+>; Whether to require email confirmation for adding new email addresses.
+>; Enable this option will also require user to confirm the email for registration.
+>REQUIRE_EMAIL_CONFIRMATION = false
+>; Whether to disallow anonymous users visiting the site.
+>REQUIRE_SIGNIN_VIEW = false
+>; Whether to disable self-registration. When disabled, accounts would have to be created by admins.
+>DISABLE_REGISTRATION = false
+>; Whether to enable captcha validation for registration
+>ENABLE_REGISTRATION_CAPTCHA = true
+>
+>; Whether to enable reverse proxy authentication via HTTP header.
+>ENABLE_REVERSE_PROXY_AUTHENTICATION = false
+>; Whether to automatically create new users for reverse proxy authentication.
+>ENABLE_REVERSE_PROXY_AUTO_REGISTRATION = false
+>; The HTTP header used as username for reverse proxy authentication.
+>REVERSE_PROXY_AUTHENTICATION_HEADER = X-WEBAUTH-USER
+>
+>[user]
+>; Whether to enable email notifications for users.
+>ENABLE_EMAIL_NOTIFICATION = false
+>
+>[session]
+>; The session provider, either "memory", "file", or "redis".
+>PROVIDER = memory
+>; The configuration for respective provider:
+>; - memory: does not need any config yet
+>; - file: session file path, e.g. `data/sessions`
+>; - redis: network=tcp,addr=:6379,password=macaron,db=0,pool_size=100,idle_timeout=180
+>PROVIDER_CONFIG = data/sessions
+>; The cookie name to store the session identifier.
+>COOKIE_NAME = i_like_gogs
+>; Whether to set cookie in HTTPS only.
+>COOKIE_SECURE = false
+>; The GC interval in seconds for session data.
+>GC_INTERVAL = 3600
+>; The maximum life time in seconds for a session.
+>MAX_LIFE_TIME = 86400
+>; The cookie name for CSRF token.
+>CSRF_COOKIE_NAME = _csrf
+>
+>[cache]
+>; The cache adapter, either "memory", "redis", or "memcache".
+>ADAPTER = memory
+>; For "memory" only, GC interval in seconds.
+>INTERVAL = 60
+>; For "redis" and "memcache", connection host address:
+>; - redis: network=tcp,addr=:6379,password=macaron,db=0,pool_size=100,idle_timeout=180
+>; - memcache: `127.0.0.1:11211`
+>HOST =
+>
+>[http]
+>; The value for "Access-Control-Allow-Origin" header, default is not to present.
+>ACCESS_CONTROL_ALLOW_ORIGIN =
+>
+>[lfs]
+>; The storage backend for uploading new objects.
+>STORAGE = local
+>; The root path to store LFS objects on local file system.
+>OBJECTS_PATH = data/lfs-objects
+>
+>[attachment]
+>; Whether to enabled upload attachments in general.
+>ENABLED = true
+>; The path to store attachments on the file system.
+>PATH = data/attachments
+>; File types that are allowed to be uploaded, e.g. "image/jpeg|image/png". Leave empty to allow any file type.
+>ALLOWED_TYPES = image/jpeg|image/png
+>; The maximum size of each file in MB.
+>MAX_SIZE = 4
+>; The maximum number of files per upload.
+>MAX_FILES = 5
+>
+>[release.attachment]
+>; Whether to enabled upload attachments for releases.
+>ENABLED = true
+>; File types that are allowed to be uploaded, e.g. "image/jpeg|image/png". Leave empty to allow any file type.
+>ALLOWED_TYPES = */*
+>; The maximum size of each file in MB.
+>MAX_SIZE = 32
+>; The maximum number of files per upload.
+>MAX_FILES = 10
+>
+>[time]
+>; Specifies the format for fully outputed dates.
+>; Values should be one of the following:
+>; ANSIC, UnixDate, RubyDate, RFC822, RFC822Z, RFC850, RFC1123, RFC1123Z, RFC3339, RFC3339Nano, Kitchen, Stamp, StampMilli, StampMicro and StampNano.
+>; For more information about the format see http://golang.org/pkg/time/#pkg-constants.
+>FORMAT = RFC1123
+>
+>[picture]
+>; The path to store user avatars on the file system.
+>AVATAR_UPLOAD_PATH = data/avatars
+>; The path to store repository avatars on the file system.
+>REPOSITORY_AVATAR_UPLOAD_PATH = data/repo-avatars
+>; Chinese users can use a custom avatar source, such as http://cn.gravatar.com/avatar/.
+>GRAVATAR_SOURCE = gravatar
+>; Whether to disable Gravatar, this value will be forced to be true in offline mode.
+>DISABLE_GRAVATAR = false
+>; Whether to enable federated avatar lookup uses DNS to discover avatar associated
+>; with emails, see https://www.libravatar.org for details.
+>; This value will be forced to be false in offline mode or when Gravatar is disabled.
+>ENABLE_FEDERATED_AVATAR = false
+>
+>[markdown]
+>; Whether to enable hard line break extension.
+>ENABLE_HARD_LINE_BREAK = false
+>; The list of custom URL schemes that are allowed as links when rendering Markdown.
+>; For example, "git" (for "git://") and "magnet" (for "magnet://").
+>CUSTOM_URL_SCHEMES =
+>; The list of file extensions that should be rendered/edited as Markdown.
+>; Separate extensions with a comma. To render files with no extension as markdown, just put a comma.
+>FILE_EXTENSIONS = .md,.markdown,.mdown,.mkd
+>
+>[smartypants]
+>; Whether to enable the Smartypants extension.
+>ENABLED = false
+>FRACTIONS = true
+>DASHES = true
+>LATEX_DASHES = true
+>ANGLED_QUOTES = true
+>
+>[admin]
+>; Whether to disable regular (non-admin) users to create organizations.
+>DISABLE_REGULAR_ORG_CREATION = false
+>
+>[webhook]
+>; The list of enabled types for users to use, can be "gogs", "slack", "discord", "dingtalk".
+>TYPES = gogs, slack, discord, dingtalk
+>; Deliver timeout in seconds.
+>DELIVER_TIMEOUT = 15
+>; Whether to allow insecure certification.
+>SKIP_TLS_VERIFY = false
+>; The number of history information in each page.
+>PAGING_NUM = 10
+>
+>; General settings of loggers.
+>[log]
+>; The root path for all log files, default is "log/" subdirectory.
+>ROOT_PATH =
+>; Can be "console", "file", "slack" and "discord".
+>; Use comma to separate multiple modes, e.g. "console, file"
+>MODE = console
+>; Buffer length of channel, keep it as it is if you don't know what it is.
+>BUFFER_LEN = 100
+>; Either "Trace", "Info", "Warn", "Error", "Fatal", default is "Trace"
+>LEVEL = Trace
+>
+>; For "console" mode only
+>[log.console]
+>; Comment out to inherit
+>; LEVEL =
+>
+>; For "file" mode only
+>[log.file]
+>; Comment out to inherit
+>; LEVEL =
+>; Whether to enable automated log rotate (switch of following options).
+>LOG_ROTATE = true
+>; Whether to segment log files daily.
+>DAILY_ROTATE = true
+>; The maximum size shift of single file, default is 28 means 1 << 28 = 256MB.
+>MAX_SIZE_SHIFT = 28
+>; The maximum number of lines of single file.
+>MAX_LINES = 1000000
+>; The expired days of log file (delete after max days).
+>MAX_DAYS = 7
+>
+>; For "slack" mode only
+>[log.slack]
+>; Comment out to inherit
+>; LEVEL =
+>; Webhook URL
+>URL =
+>
+>[log.discord]
+>; Comment out to inherit
+>; LEVEL =
+>; Webhook URL
+>URL =
+>; The username to be displayed in notification.
+>USERNAME = %(BRAND_NAME)s
+>
+>[log.xorm]
+>; Enable file rotation
+>ROTATE = true
+>; Rotate every day
+>ROTATE_DAILY = true
+>; Rotate once file size excesses x MB
+>MAX_SIZE = 100
+>; Maximum days to keep logger files
+>MAX_DAYS = 3
+>
+>[log.gorm]
+>; Whether to enable file rotation.
+>ROTATE = true
+>; Whether to rotate file every day.
+>ROTATE_DAILY = true
+>; The maximum file size in MB before next rotate.
+>MAX_SIZE = 100
+>; The maximum days to keep files.
+>MAX_DAYS = 3
+>
+>[cron]
+>; Enable running cron tasks periodically.
+>ENABLED = true
+>; Run cron tasks when Gogs starts.
+>RUN_AT_START = false
+>
+>[cron.update_mirrors]
+>; Defines how often the mirror syncer checks if any mirror needs to be synchronized (based on the mirror update interval).
+>SCHEDULE = @every 10m
+>
+>; Repository health check
+>[cron.repo_health_check]
+>SCHEDULE = @every 24h
+>TIMEOUT = 60s
+>; Arguments for command 'git fsck', e.g. "--unreachable --tags"
+>; see more on http://git-scm.com/docs/git-fsck/1.7.5
+>ARGS =
+>
+>; Check repository statistics
+>[cron.check_repo_stats]
+>RUN_AT_START = true
+>SCHEDULE = @every 24h
+>
+>; Cleanup repository archives
+>[cron.repo_archive_cleanup]
+>RUN_AT_START = false
+>SCHEDULE = @every 24h
+>; Time duration to check if archive should be cleaned
+>OLDER_THAN = 24h
+>
+>[git]
+>; Disables highlight of added and removed changes
+>DISABLE_DIFF_HIGHLIGHT = false
+>; Max number of files shown in diff view
+>MAX_GIT_DIFF_FILES = 100
+>; Max number of lines allowed of a single file in diff view
+>MAX_GIT_DIFF_LINES = 1000
+>; Max number of characters of a line allowed in diff view
+>MAX_GIT_DIFF_LINE_CHARACTERS = 2000
+>; Arguments for command 'git gc', e.g. "--aggressive --auto"
+>; see more on http://git-scm.com/docs/git-gc/1.7.5
+>GC_ARGS =
+>
+>; Operation timeout in seconds
+>[git.timeout]
+>MIGRATE = 600
+>MIRROR = 300
+>CLONE = 300
+>PULL = 300
+>DIFF = 60
+>GC = 60
+>
+>[mirror]
+>; Defines the default interval (in hours) until the next sync for a mirror (after a successful mirror sync).
+>; It can be overridden individually for each mirror repository in the settings.
+>DEFAULT_INTERVAL = 8
+>
+>[api]
+>; Max number of items will response in a page
+>MAX_RESPONSE_ITEMS = 50
+>
+>[ui]
+>; Number of repositories that are showed in one explore page
+>EXPLORE_PAGING_NUM = 20
+>; Number of issues that are showed in one page
+>ISSUE_PAGING_NUM = 10
+>; Number of maximum commits showed in one activity feed
+>FEED_MAX_COMMIT_NUM = 5
+>; Value of "theme-color" meta tag, used by Android >= 5.0
+>; An invalid color like "none" or "disable" will have the default style
+>; More info: https://developers.google.com/web/updates/2014/11/Support-for-theme-color-in-Chrome-39-for-Android
+>THEME_COLOR_META_TAG = `#ff5343`
+>; Max size in bytes of files to be displayed (default is 8MB)
+>MAX_DISPLAY_FILE_SIZE = 8388608
+>
+>[ui.admin]
+>; Number of users that are showed in one page
+>USER_PAGING_NUM = 50
+>; Number of repos that are showed in one page
+>REPO_PAGING_NUM = 50
+>; Number of notices that are showed in one page
+>NOTICE_PAGING_NUM = 25
+>; Number of organization that are showed in one page
+>ORG_PAGING_NUM = 50
+>
+>[ui.user]
+>; Number of repos that are showed in one page
+>REPO_PAGING_NUM = 15
+>; Number of news feeds that are showed in one page
+>NEWS_FEED_PAGING_NUM = 20
+>; Number of commits that are showed in one page
+>COMMITS_PAGING_NUM = 30
+>
+>[prometheus]
+>; Whether to enable Prometheus metrics.
+>ENABLED = true
+>; Whether to enable HTTP Basic Authentication to protect metrics data.
+>ENABLE_BASIC_AUTH = false
+>; The username for HTTP Basic Authentication.
+>BASIC_AUTH_USERNAME =
+>; The password for HTTP Basic Authentication.
+>BASIC_AUTH_PASSWORD =
+>
+>; Extension mapping to highlight class
+>; e.g. .toml=ini
+>[highlight.mapping]
+>
+>[i18n]
+>LANGS = en-US,zh-CN,zh-HK,zh-TW,de-DE,fr-FR,nl-NL,lv-LV,ru-RU,ja-JP,es-ES,pt-BR,pl-PL,bg-BG,it-IT,fi-FI,tr-TR,cs-CZ,sr-SP,sv-SE,ko-KR,gl-ES,uk-UA,en-GB,hu-HU,sk-SK,id-ID,fa-IR,vi-VN,pt-PT, mn-MN
+>NAMES = English,简体中文,繁體中文（香港）,繁體中文（臺灣）,Deutsch,français,Nederlands,latviešu,русский,日本語,español,português do Brasil,polski,български,italiano,suomi,Türkçe,čeština,српски,svenska,한국어,galego,українська,English (United Kingdom),Magyar,Slovenčina,Indonesian,Persian,Vietnamese,Português,Монгол
+>
+>; Used for datetimepicker
+>[i18n.datelang]
+>en-US = en
+>zh-CN = zh
+>zh-HK = zh-TW
+>zh-TW = zh-TW
+>de-DE = de
+>fr-FR = fr
+>nl-NL = nl
+>lv-LV = lv
+>ru-RU = ru
+>ja-JP = ja
+>es-ES = es
+>pt-BR = pt-BR
+>pl-PL = pl
+>bg-BG = bg
+>it-IT = it
+>fi-FI = fi
+>tr-TR = tr
+>cs-CZ = cs-CZ
+>sr-SP = sr
+>sv-SE = sv
+>ko-KR = ko
+>gl-ES = gl
+>uk-UA = uk
+>en-GB = en-GB
+>hu-HU = hu
+>sk-SK = sk
+>id-ID = id
+>fa-IR = fa
+>vi-VN = vi
+>pt-PT = pt
+>mn-MN = mn
+>
+>[other]
+>SHOW_FOOTER_BRANDING = false
+>; Show time of template execution in the footer
+>SHOW_FOOTER_TEMPLATE_LOAD_TIME = true
+>
+>```
+
+##### 3. 启动程序
+
+>启动命令
+>
+>```shell
+>nohup ./gogs web -> gogs.out &
+>```
+>
+>首次启动日志
+>
+>```tex
+>2023/02/02 13:11:56 [ WARN] Custom config "C:\\Users\\Admin\\AppData\\Local\\Temp\\go-build2989187003\\b001\\exe\\custom\\conf\\app.ini" not found. Ignore this warning if you're running for the first time
+>2023/02/02 13:11:56 [TRACE] Log mode: Console (Trace)
+>2023/02/02 13:11:56 [ INFO] Gogs 0.13.0+dev
+>2023/02/02 13:11:56 [TRACE] Work directory: C:\Users\Admin\AppData\Local\Temp\go-build2989187003\b001\exe
+>2023/02/02 13:11:56 [TRACE] Custom path: C:\Users\Admin\AppData\Local\Temp\go-build2989187003\b001\exe\custom
+>2023/02/02 13:11:56 [TRACE] Custom config: C:\Users\Admin\AppData\Local\Temp\go-build2989187003\b001\exe\custom\conf\app.ini
+>2023/02/02 13:11:56 [TRACE] Log path: C:\Users\Admin\AppData\Local\Temp\go-build2989187003\b001\exe\log
+>2023/02/02 13:11:56 [TRACE] Build time: 
+>2023/02/02 13:11:56 [TRACE] Build commit: 
+>2023/02/02 13:11:56 [ INFO] Run mode: Development
+>2023/02/02 13:11:56 [ INFO] Listen on http://0.0.0.0:3000  
+>2023/02/02 13:12:10 [TRACE] Session ID: ded272a787a32d89
+>2023/02/02 13:12:10 [TRACE] CSRF Token: 4OmJ9APKOsdRtB8gV6mFKP_IN9U6MTY3NTMxNDczMDgzMDQzNDYwMA
+>2023/02/02 13:12:10 [TRACE] Session ID: ded272a787a32d89
+>2023/02/02 13:12:10 [TRACE] CSRF Token: 4OmJ9APKOsdRtB8gV6mFKP_IN9U6MTY3NTMxNDczMDgzMDQzNDYwMA
+>2023/02/02 13:12:10 [TRACE] Template: install
+>```
+>
+>默认HTTP 端口 为`:3000`,  首次启动需要页面配置。浏览器打开 `http://localhost:3000`,进入配置页面
+>
+>![image-20230202131513781](./complie_code/image-20230202131513781.png)
+
+
+
+![image-20230202131541160](./complie_code/image-20230202131541160.png)
+
+>根据自己情况配置上述配置，然后立即安装。Gogs服务到此就已经安装完毕，后续直接使用。
+
